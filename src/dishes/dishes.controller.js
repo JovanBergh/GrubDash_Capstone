@@ -6,4 +6,12 @@ const dishes = require(path.resolve("src/data/dishes-data"));
 // Use this function to assign ID's when necessary
 const nextId = require("../utils/nextId");
 
-// TODO: Implement the /dishes handlers needed to make the tests pass
+//Method: List
+function list(req, res) {
+  res.json({ data: dishes });
+}
+
+//Export
+module.exports = {
+    list,
+};
