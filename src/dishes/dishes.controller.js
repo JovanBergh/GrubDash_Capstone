@@ -25,10 +25,26 @@ function valid(propertyName) {
   };
 }
 
+//Validate: price
+function isPrice(req, res, next) {
+    const { data: { price } = {} } = req.body;
+    if(Number(price) && price >= 0) {
+        return next();
+    }
+    return next({
+        status: 400,
+        message: "Dish must have a price that is an integer greater than 0"
+    });
+}
+
 //Export
 module.exports = {
   list,
   create:[
     valid("name"),
+    valid("description"),
+    valid("price"),
+    isPrice,
+    valid("image_url")
   ]
 };
