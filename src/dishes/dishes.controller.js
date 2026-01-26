@@ -27,24 +27,41 @@ function valid(propertyName) {
 
 //Validate: price
 function isPrice(req, res, next) {
-    const { data: { price } = {} } = req.body;
-    if(Number(price) && price >= 0) {
-        return next();
-    }
-    return next({
-        status: 400,
-        message: "Dish must have a price that is an integer greater than 0"
-    });
+  const { data: { price } = {} } = req.body;
+  if (Number(price) && price >= 0) {
+    return next();
+  }
+  return next({
+    status: 400,
+    message: "Dish must have a price that is an integer greater than 0",
+  });
+}
+
+//Methd: Create
+function create(req, res) {
+  const { data: { name, description, price, image_url } = {} } = req.body;
+  newDish = {
+    id: nextId(),
+    name: name,
+    description: description,
+    price: price,
+    image_url: image_url,
+  };
+
+  //Adding dish
+  dishes.push(newDish);
+  res.status(201).json({ data: newDish});
 }
 
 //Export
 module.exports = {
   list,
-  create:[
+  create: [
     valid("name"),
     valid("description"),
     valid("price"),
     isPrice,
-    valid("image_url")
-  ]
+    valid("image_url"),
+    create,
+  ],
 };
