@@ -1,10 +1,11 @@
 const path = require("path");
 
 // Use the existing dishes data
-const dishes = require(path.resolve("src/data/dishes-data"));
+const dishes = require("../data/dishes-data");
 
 // Use this function to assign ID's when necessary
 const nextId = require("../utils/nextId");
+const { isNumberObject } = require("util/types");
 
 //Method: List
 function list(req, res) {
@@ -50,7 +51,27 @@ function create(req, res) {
 
   //Adding dish
   dishes.push(newDish);
-  res.status(201).json({ data: newDish});
+  res.status(201).json({ data: newDish });
+}
+
+//Validate: id
+function idPresent(req, res, next) {
+  const { dishId } = req.params;
+  const foundDish = dishes.find((dish) => dish.id === dishId);
+
+  if (foundDish) {
+    res.locals.dish = foundDish;
+    return next();
+  }
+  return next({
+    status: 404,
+    message: `${dishId} not found`,
+  });
+}
+
+//Method: Read
+function read(req, res) {
+  res.json({ data: res.locals.dish });
 }
 
 //Export
@@ -64,4 +85,5 @@ module.exports = {
     valid("image_url"),
     create,
   ],
+  read: [idPresent, read],
 };
