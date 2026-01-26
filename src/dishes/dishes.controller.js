@@ -11,7 +11,24 @@ function list(req, res) {
   res.json({ data: dishes });
 }
 
+//Validate: req.body
+function valid(propertyName) {
+  return function (req, res, next) {
+    const { data = {} } = req.body;
+    if (data[propertyName]) {
+      return next();
+    }
+    return next({
+      status: 400,
+      message: `Dish must include ${propertyName}`,
+    });
+  };
+}
+
 //Export
 module.exports = {
-    list,
+  list,
+  create:[
+    valid("name"),
+  ]
 };
