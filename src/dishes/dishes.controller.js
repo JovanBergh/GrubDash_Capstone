@@ -1,4 +1,5 @@
 const path = require("path");
+const valid = require("../errors/validProperty")
 
 // Use the existing dishes data
 const dishes = require("../data/dishes-data");
@@ -9,20 +10,6 @@ const nextId = require("../utils/nextId");
 //Method: List
 function list(req, res) {
   res.json({ data: dishes });
-}
-
-//Validate: req.body
-function valid(propertyName) {
-  return function (req, res, next) {
-    const { data = {} } = req.body;
-    if (data[propertyName]) {
-      return next();
-    }
-    return next({
-      status: 400,
-      message: `Dish must include ${propertyName}`,
-    });
-  };
 }
 
 //Validate: price
