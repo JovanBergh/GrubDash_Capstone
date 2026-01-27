@@ -5,7 +5,6 @@ const dishes = require("../data/dishes-data");
 
 // Use this function to assign ID's when necessary
 const nextId = require("../utils/nextId");
-const { isNumberObject } = require("util/types");
 
 //Method: List
 function list(req, res) {
@@ -29,7 +28,7 @@ function valid(propertyName) {
 //Validate: price
 function isPrice(req, res, next) {
   const { data: { price } = {} } = req.body;
-  if (Number(price) && price >= 0) {
+  if (typeof(price) == "number" && price > 0) {
     return next();
   }
   return next({
@@ -38,7 +37,7 @@ function isPrice(req, res, next) {
   });
 }
 
-//Methd: Create
+//Methood: Create
 function create(req, res) {
   const { data: { name, description, price, image_url } = {} } = req.body;
   newDish = {
@@ -55,7 +54,7 @@ function create(req, res) {
 }
 
 //Validate: id
-function idPresent(req, res, next) {
+function idCheck(req, res, next) {
   const { dishId } = req.params;
   const foundDish = dishes.find((dish) => dish.id === dishId);
 
@@ -74,6 +73,37 @@ function read(req, res) {
   res.json({ data: res.locals.dish });
 }
 
+//Validate: req.body.id
+function idMatch(req, res, next) {
+  const { data: { id } = {} } = req.body;
+  const { dishId } = req.params;
+  if (id && id != dishId) {
+    return next({
+      status: 400,
+      message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
+    });
+  }
+  return next();
+}
+
+//Method: Update
+function update(req, res) {
+  const dishId = req.params;
+  const { data: { name, description, price, image_url } = {} } = req.body;
+  i = dishes.find((dish) => dish.id === dishId);
+  uDish = res.locals.dish;
+
+  //Updating values
+  uDish.name = name;
+  uDish.description = description;
+  uDish.price = price;
+  uDish.image_url = image_url;
+
+  //Adding to dishes
+  dishes.splice(i, 1, uDish);
+  res.status(200).json({ data: uDish });
+}
+
 //Export
 module.exports = {
   list,
@@ -85,5 +115,15 @@ module.exports = {
     valid("image_url"),
     create,
   ],
-  read: [idPresent, read],
+  read: [idCheck, read],
+  update: [
+    idCheck,
+    idMatch,
+    valid("name"),
+    valid("description"),
+    valid("price"),
+    isPrice,
+    valid("image_url"),
+    update,
+  ],
 };
