@@ -7,6 +7,7 @@ const orders = require(path.resolve("src/data/orders-data"));
 
 // Use this function to assigh ID's when necessary
 const nextId = require("../utils/nextId");
+const { rmSync } = require("fs");
 
 //Method: List
 function list(req, res) {
@@ -65,6 +66,94 @@ function create(req, res) {
   res.status(201).json({ data: newOrder });
 }
 
+//Validate: id
+function idCheck(req, res, next) {
+  const { orderId } = req.params;
+  const foundOrder = orders.find((order) => order.id === orderId);
+
+  if (foundOrder) {
+    res.locals.order = foundOrder;
+    return next();
+  }
+  return next({
+    status: 404,
+    message: `${orderId} not found`,
+  });
+}
+
+//Method: Read
+function read(req, res) {
+  res.json({ data: res.locals.order });
+}
+
+//Validate: req.body.id
+function idMatch(req, res, next) {
+  const { data: { id } = {} } = req.body;
+  const { orderId } = req.params;
+  if (id && id != orderId) {
+    return next({
+      status: 400,
+      message: `Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
+    });
+  }
+  return next();
+}
+
+//Validate: status
+function status(req, res, next) {
+  const { data: { status } = {} } = req.body;
+  const validSyntax = ["pending", "preparing", "out-for-delivery", "delivered"];
+  if (status && validSyntax.includes(status)) {
+    if (status === "delivered") {
+      return next({
+        status: 400,
+        message: "A delivered order cannot be changed",
+      });
+    }
+    return next();
+  }
+  return next({
+    status: 400,
+    message:
+      "Order must have a status of pending, preparing, out-for-delivery, delivered",
+  });
+}
+
+//Method: Update
+function update(req, res) {
+  const { data: { deliverTo, mobileNumber, status, dishes } = [] } = req.body;
+  const { orderId } = req.params;
+
+  const uOrder = res.locals.order;
+  const i = orders.findIndex((order) => order.id === orderId);
+
+  //Updating order
+  uOrder.deliverTo = deliverTo;
+  uOrder.mobileNumber = mobileNumber;
+  uOrder.status = status;
+  uOrder.dishes = dishes;
+
+  //Updating order array
+  orders.splice(i, 1, uOrder);
+  res.json({ data: uOrder });
+}
+
+//Method: Destroy
+function destroy(req, res, next) {
+  const status = res.locals.order.status;
+  const { orderId } = req.params;
+  const i = orders.find((order) => order.id === orderId);
+  if (status === "pending") {
+    //Removing order
+    const removedOrder = orders.splice(i, 1);
+    res.status(204).json({ data: removedOrder });
+  }
+  return next({
+    status: 400,
+    message: "An order cannot be deleted unless it is pending.",
+  });
+}
+
 //Export
 module.exports = {
   list,
@@ -75,4 +164,16 @@ module.exports = {
     quantity,
     create,
   ],
+  read: [idCheck, read],
+  update: [
+    idCheck,
+    idMatch,
+    valid("deliverTo"),
+    valid("mobileNumber"),
+    dishOrder,
+    quantity,
+    status,
+    update,
+  ],
+  delete: [idCheck, destroy],
 };
