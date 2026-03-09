@@ -2,9 +2,12 @@
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
+
+const nextId = require("../../utils/nextId");
+
 exports.up = function(knex) {
   return knex.schema.createTable("orders", (table) => {
-    table.uuid("id", (options = { primaryKey: true }));
+    table.uuid("id", (options = { primaryKey: true })).defaultTo(nextId());
     table.string("deliverTo");
     table.string("mobileNumber");
     table.string("status");
