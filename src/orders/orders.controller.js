@@ -4,6 +4,33 @@ const ordersService = require("./orders.service");
 //Error handling
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const valid = require("../errors/validProperty");
+const hasProperties = require("../errors/hasProperties");
+
+const VALID_PROPERTIES = [
+  "id",
+  "deliverTo",
+  "mobileNumber",
+  "status",
+  "dishes"
+]
+
+//Validate Req.Body
+const hasRequiredProperties = hasProperties("deliverTo","mobileNumber", "dishes");
+function hasOnlyValidProperties(req, res, next) {
+  const { data = {} } = req.body;
+
+  const invalidFields = Object.keys(data).filter(
+    (field) => !VALID_PROPERTIES.includes(field),
+  );
+
+  if (invalidFields.length) {
+    return next({
+      status: 400,
+      message: `Invalid field(s): ${invalidFields.join(", ")}`,
+    });
+  }
+  next();
+}
 
 // Use this function to assigh ID's when necessary
 const nextId = require("../utils/nextId");
@@ -52,8 +79,18 @@ function quantity(req, res, next) {
   return next();
 }
 
+//Update join table
+async function updateDishesOrdersTable(req, res) {
+  const { dishes } = res.locals.order.dishes; 
+    for (i = 0; i < dishes; i++) {
+        const dish = dishes[i];
+        await ordersService.updateDishesOrdersTable(dish);
+    }
+}
+
 //Method: Create
-function create(req, res) {
+async function create(req, res) {
+
   const { data: { deliverTo, mobileNumber, status, dishes } = [] } = req.body;
 
   newOrder = {
@@ -63,8 +100,7 @@ function create(req, res) {
     status: status,
     dishes: dishes,
   };
-  orders.push(newOrder);
-  res.status(201).json({ data: newOrder });
+  res.status(201).json({ data: await ordersService.create(newOrder) });
 }
 
 //Validate: id
@@ -159,11 +195,14 @@ function destroy(req, res, next) {
 module.exports = {
   list: asyncErrorBoundary(list),
   create: [
-    valid("deliverTo"),
-    valid("mobileNumber"),
-    dishOrder,
-    quantity,
-    create,
+    asyncErrorBoundary(hasProperties),
+    asyncErrorBoundary(hasOnlyValidProperties),
+    asyncErrorBoundary(valid("deliverTo")),
+    asyncErrorBoundary(valid("mobileNumber")),
+    asyncErrorBoundary(dishOrder),
+    asyncErrorBoundary(quantity),
+    asyncErrorBoundary(updateDishesOrdersTable),
+    asyncErrorBoundary(create),
   ],
   read: [idCheck, read],
   update: [
