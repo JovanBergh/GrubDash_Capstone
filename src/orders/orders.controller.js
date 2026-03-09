@@ -1,17 +1,17 @@
 const path = require("path");
-
+const ordersService = require("./orders.service");
+//Error handling
+const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const valid = require("../errors/validProperty");
-
-// Use the existing order data
-const orders = require(path.resolve("src/data/orders-data"));
 
 // Use this function to assigh ID's when necessary
 const nextId = require("../utils/nextId");
 const { rmSync } = require("fs");
 
 //Method: List
-function list(req, res) {
-  res.json({ data: orders });
+async function list(req, res) {
+  const data = await ordersService.list();
+  res.json({ data });
 }
 
 //Validate: populated dishes array included
@@ -156,7 +156,7 @@ function destroy(req, res, next) {
 
 //Export
 module.exports = {
-  list,
+  list: asyncErrorBoundary(list),
   create: [
     valid("deliverTo"),
     valid("mobileNumber"),
