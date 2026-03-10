@@ -1,5 +1,4 @@
 const knex = require("../db/connection"); //Defining knex connection
-const dishesController = require("../dishes/dishes.controller");
 const mapProperties = require("../utils/map-properties"); //importing mapProperties for read function
 
 //Modify Table: Dishes
