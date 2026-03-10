@@ -1,21 +1,42 @@
 const path = require("path");
-const valid = require("../errors/validProperty")
-
-// Use the existing dishes data
-const dishes = require("../data/dishes-data");
-
-// Use this function to assign ID's when necessary
 const nextId = require("../utils/nextId");
 
+const dishesService = require("./dishes.service");
+
+//Error handling
+const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
+const hasProperties = require("../errors/hasProperties");
+
+
+const VALID_PROPERTIES = ["name", "description", "price", "image_url"];
+
+const hasRequiredProperties = hasProperties("name", "price");
+
+function hasOnlyValidProperties(req, res, next) {
+  const { data = {} } = req.body;
+
+  const invalidFields = Object.keys(data).filter(
+    (field) => !VALID_PROPERTIES.includes(field),
+  );
+
+  if (invalidFields.length) {
+    return next({
+      status: 400,
+      message: `Invalid field(s): ${invalidFields.join(", ")}`,
+    });
+  }
+  next();
+}
+
 //Method: List
-function list(req, res) {
-  res.json({ data: dishes });
+async function list(req, res) {
+  res.json({ data: await dishesService.list() });
 }
 
 //Validate: price
-function isPrice(req, res, next) {
+function isValidPrice(req, res, next) {
   const { data: { price } = {} } = req.body;
-  if (typeof(price) == "number" && price > 0) {
+  if (typeof price == "number" && price > 0) {
     return next();
   }
   return next({
@@ -25,26 +46,14 @@ function isPrice(req, res, next) {
 }
 
 //Methood: Create
-function create(req, res) {
-  const { data: { name, description, price, image_url } = {} } = req.body;
-  newDish = {
-    id: nextId(),
-    name: name,
-    description: description,
-    price: price,
-    image_url: image_url,
-  };
-
-  //Adding dish
-  dishes.push(newDish);
-  res.status(201).json({ data: newDish });
+async function create(req, res) {
+  const data = await dishesService.create(req.body.data);
+  res.status(201).json({ data });
 }
 
 //Validate: id
-function idCheck(req, res, next) {
-  const { dishId } = req.params;
-  const foundDish = dishes.find((dish) => dish.id === dishId);
-
+async function dishExists(req, res, next) {
+  const foundDish = await dishesService.checkDishId(req.params.dishId);
   if (foundDish) {
     res.locals.dish = foundDish;
     return next();
@@ -61,56 +70,46 @@ function read(req, res) {
 }
 
 //Validate: req.body.id
-function idMatch(req, res, next) {
+function idMatches(req, res, next) {
   const { data: { id } = {} } = req.body;
   const { dishId } = req.params;
-  if (id && id != dishId) {
-    return next({
-      status: 400,
-      message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
-    });
+  if (id) {
+    if (id != dishId) {
+      return next({
+        status: 400,
+        message: `Dish id does not match route id. Dish: ${id}, Route: ${dishId}`,
+      });
+    }
   }
   return next();
 }
 
 //Method: Update
-function update(req, res) {
-  const dishId = req.params;
-  const { data: { name, description, price, image_url } = {} } = req.body;
-  i = dishes.find((dish) => dish.id === dishId);
-  uDish = res.locals.dish;
-
-  //Updating values
-  uDish.name = name;
-  uDish.description = description;
-  uDish.price = price;
-  uDish.image_url = image_url;
-
-  //Adding to dishes
-  dishes.splice(i, 1, uDish);
-  res.status(200).json({ data: uDish });
+async function update(req, res) {
+  const updatedDish = {
+    ...req.body.data,
+    id: res.locals.dish.id,
+  };
+  const data = await dishesService.update(updatedDish);
+  res.status(200).json({ data });
 }
 
 //Export
 module.exports = {
-  list,
+  list: asyncErrorBoundary(list),
   create: [
-    valid("name"),
-    valid("description"),
-    valid("price"),
-    isPrice,
-    valid("image_url"),
-    create,
+    asyncErrorBoundary(hasRequiredProperties),
+    asyncErrorBoundary(hasOnlyValidProperties),
+    asyncErrorBoundary(isValidPrice),
+    asyncErrorBoundary(create),
   ],
-  read: [idCheck, read],
+  read: [asyncErrorBoundary(dishExists), asyncErrorBoundary(read)],
   update: [
-    idCheck,
-    idMatch,
-    valid("name"),
-    valid("description"),
-    valid("price"),
-    isPrice,
-    valid("image_url"),
-    update,
+    asyncErrorBoundary(hasRequiredProperties),
+    asyncErrorBoundary(hasOnlyValidProperties),
+    asyncErrorBoundary(dishExists),
+    asyncErrorBoundary(idMatches),
+    asyncErrorBoundary(isValidPrice),
+    asyncErrorBoundary(update),
   ],
 };

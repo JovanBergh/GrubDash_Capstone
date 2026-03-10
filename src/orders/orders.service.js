@@ -16,16 +16,29 @@ function list() {
 }
 
 
-function updateDishesOrdersTable(dish) {
-    return knex("orders_dishes").insert({ order_id: order.id, dish_id: dish.id, quantity: dish.quantity });
+function updateDishesOrdersTable() {
+    return knex("orders_dishes").insert({ order_id: res.locals.order.id, dish_id: res.locals.dish.id, quantity: res.locals.dish.quantity });
 }
 
 async function create(order) {
-    return await knex("orders").insert({ id: order.id, deliverTo: order.deliverTo, status: order.status }).returning("*");
+    return await knex("orders")
+    .insert(order)
+    .returning("*")
+    .then((createdRecords) => createdRecords[0]);
+}
+
+function checkOrderId(orderId) {
+    return knex("orders").select("*").where({ id: orderId });
+}
+
+function destroy(orderId) {
+    return knex("orders").where({ id: orderId }).del();
 }
 
 module.exports = {
     list,
     create,
-    updateDishesOrdersTable
+    updateDishesOrdersTable,
+    checkOrderId,
+    delete: destroy
 }

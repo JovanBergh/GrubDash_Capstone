@@ -3,7 +3,6 @@ const ordersService = require("./orders.service");
 
 //Error handling
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
-const valid = require("../errors/validProperty");
 const hasProperties = require("../errors/hasProperties");
 
 const VALID_PROPERTIES = [
@@ -11,11 +10,15 @@ const VALID_PROPERTIES = [
   "deliverTo",
   "mobileNumber",
   "status",
-  "dishes"
-]
+  "dishes",
+];
 
 //Validate Req.Body
-const hasRequiredProperties = hasProperties("deliverTo","mobileNumber", "dishes");
+const hasRequiredProperties = hasProperties(
+  "deliverTo",
+  "mobileNumber",
+  "dishes",
+);
 function hasOnlyValidProperties(req, res, next) {
   const { data = {} } = req.body;
 
@@ -36,6 +39,15 @@ function hasOnlyValidProperties(req, res, next) {
 const nextId = require("../utils/nextId");
 const { rmSync } = require("fs");
 
+//Use this function to add entries to dishes_orders
+async function updateDishesOrdersTable(req, res) {
+  const { dishes } = res.locals.order.dishes;
+  for (i = 0; i < dishes; i++) {
+    res.locals.dish = dishes[i];
+    await ordersService.updateDishesOrdersTable();
+  }
+}
+
 //Method: List
 async function list(req, res) {
   const data = await ordersService.list();
@@ -43,7 +55,7 @@ async function list(req, res) {
 }
 
 //Validate: populated dishes array included
-function dishOrder(req, res, next) {
+function isValidDishOrder(req, res, next) {
   const { data: { dishes } = {} } = req.body;
   if (!dishes) {
     return next({
@@ -61,7 +73,7 @@ function dishOrder(req, res, next) {
 }
 
 //Validate: dishes have valid quantity
-function quantity(req, res, next) {
+function isValidQuantity(req, res, next) {
   const { data: { dishes } = {} } = req.body;
   for (i = 0; i < dishes.length; i++) {
     const dish = dishes[i];
@@ -79,35 +91,15 @@ function quantity(req, res, next) {
   return next();
 }
 
-//Update join table
-async function updateDishesOrdersTable(req, res) {
-  const { dishes } = res.locals.order.dishes; 
-    for (i = 0; i < dishes; i++) {
-        const dish = dishes[i];
-        await ordersService.updateDishesOrdersTable(dish);
-    }
-}
-
 //Method: Create
 async function create(req, res) {
-
-  const { data: { deliverTo, mobileNumber, status, dishes } = [] } = req.body;
-
-  newOrder = {
-    id: nextId(),
-    deliverTo: deliverTo,
-    mobileNumber: mobileNumber,
-    status: status,
-    dishes: dishes,
-  };
-  res.status(201).json({ data: await ordersService.create(newOrder) });
+  const data = ordersService.create(req.body);
+  res.status(201).json({ data });
 }
 
 //Validate: id
-function idCheck(req, res, next) {
-  const { orderId } = req.params;
-  const foundOrder = orders.find((order) => order.id === orderId);
-
+async function orderExists(req, res, next) {
+  const foundOrder = await ordersService.checkOrderId(req.params.orderId);
   if (foundOrder) {
     res.locals.order = foundOrder;
     return next();
@@ -124,20 +116,22 @@ function read(req, res) {
 }
 
 //Validate: req.body.id
-function idMatch(req, res, next) {
+function idMatches(req, res, next) {
   const { data: { id } = {} } = req.body;
   const { orderId } = req.params;
-  if (id && id != orderId) {
-    return next({
-      status: 400,
-      message: `Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
-    });
+  if (id) {
+    if (id != orderId) {
+      return next({
+        status: 400,
+        message: `Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
+      });
+    }
+    return next();
   }
-  return next();
 }
 
 //Validate: status
-function status(req, res, next) {
+function isValidStatus(req, res, next) {
   const { data: { status } = {} } = req.body;
   const validSyntax = ["pending", "preparing", "out-for-delivery", "delivered"];
   if (status && validSyntax.includes(status)) {
@@ -157,33 +151,21 @@ function status(req, res, next) {
 }
 
 //Method: Update
-function update(req, res) {
-  const { data: { deliverTo, mobileNumber, status, dishes } = [] } = req.body;
-  const { orderId } = req.params;
-
-  const uOrder = res.locals.order;
-  const i = orders.findIndex((order) => order.id === orderId);
-
-  //Updating order
-  uOrder.deliverTo = deliverTo;
-  uOrder.mobileNumber = mobileNumber;
-  uOrder.status = status;
-  uOrder.dishes = dishes;
-
-  //Updating order array
-  orders.splice(i, 1, uOrder);
-  res.json({ data: uOrder });
+async function update(req, res) {
+  const updatedOrder = {
+    ...req.body,
+    id: res.locals.order.id,
+  };
+  const data = await ordersService.update(updatedOrder);
+  res.json({ data });
 }
 
 //Method: Destroy
-function destroy(req, res, next) {
-  const status = res.locals.order.status;
-  const { orderId } = req.params;
-  const i = orders.find((order) => order.id === orderId);
-  if (status === "pending") {
+async function destroy(req, res, next) {
+  if (res.locals.order.status === "pending") {
     //Removing order
-    const removedOrder = orders.splice(i, 1);
-    res.status(204).json({ data: removedOrder });
+    const data = await ordersService.delete(res.locals.order.id);
+    res.status(204).json({ data });
   }
   return next({
     status: 400,
@@ -197,23 +179,21 @@ module.exports = {
   create: [
     asyncErrorBoundary(hasProperties),
     asyncErrorBoundary(hasOnlyValidProperties),
-    asyncErrorBoundary(valid("deliverTo")),
-    asyncErrorBoundary(valid("mobileNumber")),
-    asyncErrorBoundary(dishOrder),
-    asyncErrorBoundary(quantity),
+    asyncErrorBoundary(isValidDishOrder),
+    asyncErrorBoundary(isValidQuantity),
     asyncErrorBoundary(updateDishesOrdersTable),
     asyncErrorBoundary(create),
   ],
-  read: [idCheck, read],
+  read: [asyncErrorBoundary(orderExists), asyncErrorBoundary(read)],
   update: [
-    idCheck,
-    idMatch,
-    valid("deliverTo"),
-    valid("mobileNumber"),
-    dishOrder,
-    quantity,
-    status,
-    update,
+    asyncErrorBoundary(hasRequiredProperties),
+    asyncErrorBoundary(hasOnlyValidProperties),
+    asyncErrorBoundary(orderExists),
+    asyncErrorBoundary(idMatches),
+    asyncErrorBoundary(isValidDishOrder),
+    asyncErrorBoundary(isValidQuantity),
+    asyncErrorBoundary(isValidStatus),
+    asyncErrorBoundary(update),
   ],
-  delete: [idCheck, destroy],
+  delete: [asyncErrorBoundary(orderExists), asyncErrorBoundary(destroy)],
 };
