@@ -7,13 +7,13 @@ exports.seed = async function(knex) {
   await knex('orders').del()
   await knex('orders').insert([
   {
-    order_id: "f6069a542257054114138301947672ba",
+    id: "f6069a542257054114138301947672ba",
     deliverTo: "1600 Pennsylvania Avenue NW, Washington, DC 20500",
     mobileNumber: "(202) 456-1111",
     status: "out-for-delivery",
   },
   {
-    order_id: "5a887d326e83d3c5bdcbee398ea32aff",
+    id: "5a887d326e83d3c5bdcbee398ea32aff",
     deliverTo: "308 Negra Arroyo Lane, Albuquerque, NM",
     mobileNumber: "(505) 143-3369",
     status: "delivered",

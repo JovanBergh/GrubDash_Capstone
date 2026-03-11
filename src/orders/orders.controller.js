@@ -5,8 +5,6 @@ const nextId = require("../utils/nextId");
 //Error handling
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const hasProperties = require("../errors/hasProperties");
-const { monitorEventLoopDelay } = require("perf_hooks");
-const { eq } = require("lodash");
 
 const VALID_PROPERTIES = [
   "id",
@@ -22,6 +20,8 @@ const hasRequiredProperties = hasProperties(
   "mobileNumber",
   "dishes",
 );
+
+
 function hasOnlyValidProperties(req, res, next) {
   const { data = {} } = req.body;
 
@@ -56,7 +56,7 @@ async function updateDishesOrdersTable(req, res) {
 
 //Method: List
 async function list(req, res) {
-  const data = await ordersService.list();
+  const data = (await ordersService.list());
   res.json({ data });
 }
 

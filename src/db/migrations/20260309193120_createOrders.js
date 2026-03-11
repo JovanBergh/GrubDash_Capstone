@@ -5,19 +5,19 @@
 
 const nextId = require("../../utils/nextId");
 
-exports.up = function(knex) {
+exports.up = function (knex) {
   return knex.schema.createTable("orders", (table) => {
-    table.uuid("order_id", (options = { primaryKey: true })).defaultTo(nextId());
+    table.uuid("id", (options = { primaryKey: true })).defaultTo(nextId());
     table.string("deliverTo");
     table.string("mobileNumber");
     table.string("status");
-  }); 
+  });
 };
 
 /**
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-exports.down = function(knex) {
-  return knex.schema.dropTable("orders");  
+exports.down = function (knex) {
+  return knex.schema.dropTable("orders");
 };
