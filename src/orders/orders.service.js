@@ -6,13 +6,13 @@ const addDishProperty = mapProperties({
   dish_id: "dish.id",
   name: "dish.name",
   price: "dish.price",
-  quantity: "dish.quantity",
   description: "dish.description",
   image_url: "dish.image_url",
+  quantity: "dish.quantity"
 });
 
 const DISH_KEYS = [
-    "dish_id",
+    "id",
     "name",
     "description",
     "price",
@@ -21,11 +21,20 @@ const DISH_KEYS = [
 
 ]
 
+
 function list() {
   return knex("orders as o")
     .join("orders_dishes as od", "o.order_id", "od.order_id")
     .join("dishes as d", "od.dish_id", "d.dish_id")
-    .select("o.*", "d.*", "od.quantity")
+    .select(
+      "o.order_id as id",
+      "o.deliverTo",
+      "o.mobileNumber",
+      "o.status", 
+      "d.*", 
+      "od.dish_id",  
+      "od.quantity"
+    )
     .then((rows) => rows.map(addDishProperty))
     .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS));
 }
@@ -44,12 +53,20 @@ async function create(order) {
 
 function checkOrderId(orderId) {
   return knex("orders as o")
-    .join("orders_dishes as od", "o.id", "od.order_id")
-    .join("dishes as d", "od.dish_id", "d.id")
-    .select("o.*", "d.*", "od.quantity")
-    .where({ "o.id": orderId })
-    .first()
-    .then(addDish);
+    .join("orders_dishes as od", "o.order_id", "od.order_id")
+    .join("dishes as d", "od.dish_id", "d.dish_id")
+    .select(
+      "o.order_id as id",
+      "o.deliverTo",
+      "o.mobileNumber",
+      "o.status", 
+      "d.*", 
+      "od.dish_id",  
+      "od.quantity"
+    )
+    .where({"o.order_id": orderId})
+    .then((rows) => rows.map(addDishProperty))
+    .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS));
 }
 
 function destroy(orderId) {
