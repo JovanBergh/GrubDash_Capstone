@@ -4,7 +4,7 @@ const mapProperties = require("../utils/map-properties"); //importing mapPropert
 
 //Modify Table: Dishes
 const addDish = mapProperties({
-    dish_id: "dishes.dish_id",
+    dish_id: "dishes.id",
     name: "dishes.name",
     price: "dishes.price",
     quantity: "dishes.quantity",
