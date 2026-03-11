@@ -7,7 +7,7 @@ const nextId = require("../../utils/nextId");
 
 exports.up = function(knex) {
   return knex.schema.createTable("dishes", (table) => {
-    table.uuid("id", (options = { primaryKey: true })).defaultTo(nextId());
+    table.uuid("dish_id", (options = { primaryKey: true })).defaultTo(nextId());
     table.string("name");
     table.string("description");
     table.float("price");

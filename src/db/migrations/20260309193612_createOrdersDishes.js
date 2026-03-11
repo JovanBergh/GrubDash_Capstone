@@ -7,13 +7,13 @@ exports.up = function(knex) {
     table.uuid("order_id").notNullable();
     table
       .foreign("order_id")
-      .references("id")
+      .references("order_id")
       .inTable("orders")
       .onDelete("CASCADE");
     table.uuid("dish_id").notNullable();
     table
       .foreign("dish_id")
-      .references("id")
+      .references("dish_id")
       .inTable("dishes")
       .onDelete("CASCADE");
 

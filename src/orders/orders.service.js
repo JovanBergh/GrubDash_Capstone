@@ -1,22 +1,27 @@
 const knex = require("../db/connection"); //Defining knex connection
 const mapProperties = require("../utils/map-properties"); //importing mapProperties for read function
 
+
 //Modify Table: Dishes
 const addDish = mapProperties({
-    dish_id: "dishes.id",
-    dish_name: "dishes.name",
-    dish_price: "dishes.price",
-    dish_description: "dishes.description",
-    dish_image: "dishes.image_url"
+    dish_id: "dishes.dish_id",
+    name: "dishes.name",
+    price: "dishes.price",
+    quantity: "dishes.quantity",
+    description: "dishes.description",
+    image_url: "dishes.image_url"
 })
 
+function addDishes() {
+    return dishes = [addDish];
+}
 function list() {
     return knex("orders").select(("*"));
 }
 
 
-function updateDishesOrdersTable() {
-    return knex("orders_dishes").insert({ order_id: res.locals.order.id, dish_id: res.locals.dish.id, quantity: res.locals.dish.quantity });
+function updateDishesOrdersTable(entry) {
+    return knex("orders_dishes").insert({ entry });
 }
 
 async function create(order) {
@@ -27,7 +32,13 @@ async function create(order) {
 }
 
 function checkOrderId(orderId) {
-    return knex("orders").select("*").where({ id: orderId });
+    return knex("orders as o")
+        .join("orders_dishes as od", "o.order_id", "od.order_id")
+        .join("dishes as d", "od.dish_id", "d.dish_id")
+        .select("o.*", "d.*", "od.quantity")
+        .where({ "o.order_id": orderId })
+        .first()
+        .then(addDish);
 }
 
 function destroy(orderId) {
@@ -39,5 +50,5 @@ module.exports = {
     create,
     updateDishesOrdersTable,
     checkOrderId,
-    delete: destroy
+    delete: destroy,
 }

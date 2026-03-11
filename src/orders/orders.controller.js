@@ -1,9 +1,12 @@
 const path = require("path");
 const ordersService = require("./orders.service");
+const nextId = require("../utils/nextId");
 
 //Error handling
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const hasProperties = require("../errors/hasProperties");
+const { monitorEventLoopDelay } = require("perf_hooks");
+const { eq } = require("lodash");
 
 const VALID_PROPERTIES = [
   "id",
@@ -35,16 +38,19 @@ function hasOnlyValidProperties(req, res, next) {
   next();
 }
 
-// Use this function to assigh ID's when necessary
-const nextId = require("../utils/nextId");
-const { rmSync } = require("fs");
 
 //Use this function to add entries to dishes_orders
 async function updateDishesOrdersTable(req, res) {
   const { dishes } = res.locals.order.dishes;
   for (i = 0; i < dishes; i++) {
-    res.locals.dish = dishes[i];
-    await ordersService.updateDishesOrdersTable();
+    const dish = dishes[i];
+    const newEntry = {
+      order_id: res.locals.order.id,
+      dish_id: dish.id,
+      quantity: dish.quantity
+
+    }
+    await ordersService.updateDishesOrdersTable(newEntry);
   }
 }
 
@@ -76,15 +82,15 @@ function isValidDishOrder(req, res, next) {
 function isValidQuantity(req, res, next) {
   const { data: { dishes } = {} } = req.body;
   for (i = 0; i < dishes.length; i++) {
-    const dish = dishes[i];
+    const { quantity } = dishes[i];
     if (
-      !dish.quantity ||
-      typeof dish.quantity != "number" ||
-      dish.quantity <= 0
+      !quantity ||
+      typeof Number(quantity) != "number" ||
+      Number(quantity) <= 0
     ) {
       return next({
         status: 400,
-        message: `dish ${i} must have a quantity that is an integer greater than 0`,
+        message: `dish ${i+1} must have a quantity that is an integer greater than 0`,
       });
     }
   }
@@ -93,13 +99,20 @@ function isValidQuantity(req, res, next) {
 
 //Method: Create
 async function create(req, res) {
-  const data = ordersService.create(req.body);
+  const { deliverTo, mobileNumber } = req.body.data;
+  const newOrder = {
+    id : nextId(),
+    deliverTo: deliverTo,
+    mobileNumber: mobileNumber
+  }
+  const data = await ordersService.create(newOrder);
   res.status(201).json({ data });
 }
 
 //Validate: id
 async function orderExists(req, res, next) {
-  const foundOrder = await ordersService.checkOrderId(req.params.orderId);
+  const { orderId } = req.params;
+  const foundOrder = await ordersService.checkOrderId(orderId);
   if (foundOrder) {
     res.locals.order = foundOrder;
     return next();
@@ -112,6 +125,7 @@ async function orderExists(req, res, next) {
 
 //Method: Read
 function read(req, res) {
+  res.locals.order.dishes = Array(res.locals.order.dishes)
   res.json({ data: res.locals.order });
 }
 
@@ -177,12 +191,12 @@ async function destroy(req, res, next) {
 module.exports = {
   list: asyncErrorBoundary(list),
   create: [
-    asyncErrorBoundary(hasProperties),
+    asyncErrorBoundary(hasRequiredProperties),
     asyncErrorBoundary(hasOnlyValidProperties),
     asyncErrorBoundary(isValidDishOrder),
     asyncErrorBoundary(isValidQuantity),
-    asyncErrorBoundary(updateDishesOrdersTable),
     asyncErrorBoundary(create),
+    asyncErrorBoundary(updateDishesOrdersTable),
   ],
   read: [asyncErrorBoundary(orderExists), asyncErrorBoundary(read)],
   update: [
