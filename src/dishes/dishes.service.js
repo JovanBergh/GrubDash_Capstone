@@ -1,7 +1,7 @@
 const knex = require("../db/connection"); //Defining knex connection
 
 function list() {
-  return knex("dishes").select("*");
+  return knex("dishes as d").select("d.dish_id as id", "d.name", "d.description", "d.price", "d.image_url");
 }
 
 function create(dish) {
@@ -12,7 +12,7 @@ function create(dish) {
 }
 
 function checkDishId(dishId) {
-    return knex("dishes").select("*").where({ id: dishId });
+    return knex("dishes as d").select("d.dish_id as id", "d.name", "d.description", "d.price", "d.image_url").where({ dish_id: dishId });
 }
 
 module.exports = {
