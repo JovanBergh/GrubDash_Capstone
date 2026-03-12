@@ -41,14 +41,15 @@ function read(orderId) {
     )
     .where({"o.order_id": orderId})
     .then((rows) => rows.map(addDishProperty))
-    .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS));
-}// retreive
+    .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS))
+    .then((createdRecords) => createdRecords[0]);
+}// read
 
 async function create(order) {
   return await knex("orders as o")
     .insert(order)
     .returning(
-      "o.order_id")
+      "o.order_id as id")
     .then((createdRecords) => createdRecords[0]);
 }// create
 

@@ -31,19 +31,19 @@ async function create(req, res) {
   for (const dish of dishes) {
     await ordersService.joinTable.create({
       //updating orders DB dependencies
-      order_id: newOrder.order_id,
+      order_id: newOrder.id,
       dish_id: dish.dish_id,
       quantity: dish.quantity,
     });
   } // Adding
 
-  res.status(201).json({ data: await ordersService.read(newOrder.order_id) });
+  res.status(201).json({ data: await ordersService.read(newOrder.id) });
 } // create
 
 async function update(req, res) {
   const updatedOrder = {
     ...req.body,
-    order_id: res.locals.order.id,
+    order_id: res.locals.order.order_id,
   };
   const data = await ordersService.update(updatedOrder);
   res.json({ data });
@@ -51,7 +51,7 @@ async function update(req, res) {
 
 async function destroy(req, res, next) {
   if (res.locals.order.status == "pending") {
-    const data = await ordersService.delete(res.locals.order.id); //Removing Order from DB
+    const data = await ordersService.delete(res.locals.order.order_id); //Removing Order from DB
     res.status(204).json({ data });
   } // if(order.status == pending)
 
