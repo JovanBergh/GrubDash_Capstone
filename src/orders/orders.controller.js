@@ -1,13 +1,12 @@
 const path = require("path");
 const ordersService = require("./orders.service");
 const nextId = require("../utils/nextId");
-
+const normalizedDishes = require("../utils/normalized-dishes");
 //Error handling
 const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const hasProperties = require("../errors/hasProperties");
 
 //JOIN TABLE METHODS
-
 
 //MAIN METHODS
 async function list(req, res) {
@@ -20,38 +19,43 @@ function read(req, res) {
 } // read
 
 async function create(req, res) {
-  const { deliverTo, mobileNumber, dishes } = req.body.data;
-
+  const { deliverTo, mobileNumber } = req.body.data;
   const newOrder = await ordersService.create({
-    //updating orders DB
     deliverTo: deliverTo,
     mobileNumber: mobileNumber,
-  });
+  }); //updating orders DB
 
-  for (const dish of dishes) {
-    await ordersService.joinTable.create({
-      //updating orders DB dependencies
-      order_id: newOrder.id,
-      dish_id: dish.dish_id,
-      quantity: dish.quantity,
-    });
-  } // Adding
+  const dishes = normalizedDishes(newOrder.id, req.body.data.dishes);
 
-  res.status(201).json({ data: await ordersService.read(newOrder.id) });
+  await ordersService.joinTable.insert(newOrder.id, dishes); //updating dependencies
+
+  res.status(201).json({ data: await ordersService.read(newOrder.id) }); // Returning order
 } // create
 
 async function update(req, res) {
-  const updatedOrder = {
-    ...req.body,
-    order_id: res.locals.order.order_id,
+  const { deliverTo, mobileNumber, status } = req.body.data;
+  const orderId = res.locals.orderId;
+
+  const newOrder = {
+    deliverTo: deliverTo,
+    mobileNumber: mobileNumber,
+    status: status,
   };
-  const data = await ordersService.update(updatedOrder);
-  res.json({ data });
+
+  const dishes = normalizedDishes(orderId, req.body.data.dishes);
+
+  await ordersService.update(orderId, newOrder); // Updating DB
+
+  await ordersService.joinTable.remove(orderId); // Deleting DB dependencies
+
+  await ordersService.joinTable.insert(orderId, dishes); // Regenerating DB dependencies
+
+  res.json({ data: await ordersService.read(orderId) }); // Returning updated order
 } // update
 
 async function destroy(req, res, next) {
   if (res.locals.order.status == "pending") {
-    const data = await ordersService.delete(res.locals.order.order_id); //Removing Order from DB
+    const data = await ordersService.delete(res.locals.orderId); //Removing Order from DB
     res.status(204).json({ data });
   } // if(order.status == pending)
 
@@ -104,7 +108,6 @@ function isValidDishOrder(req, res, next) {
   } // if (!dishes)
 
   if (Array.isArray(dishes) && dishes.length > 0) {
-    res.locals.order = req.body.data;
     return next();
   } // if (Array(dishes).length >0)
 
@@ -115,7 +118,7 @@ function isValidDishOrder(req, res, next) {
 } //isValidDishOrder
 
 function isValidQuantity(req, res, next) {
-  const dishes = res.locals.order.dishes;
+  const { data: { dishes } = {} } = req.body;
   for (i = 0; i < dishes.length; i++) {
     const { quantity } = dishes[i];
     if (
@@ -132,36 +135,34 @@ function isValidQuantity(req, res, next) {
   return next();
 } // isValidQuantity
 
-async function orderExists(req, res, next) {
-
+async function doesOrderExist(req, res, next) {
+  
   const { orderId } = req.params;
 
   const foundOrder = await ordersService.read(orderId); // Searching DB
 
   if (foundOrder) {
     res.locals.order = foundOrder;
+    res.locals.orderId = orderId;
     return next();
-  }// (foundOrder)
+  } // (foundOrder)
 
   return next({
     status: 404,
     message: `${orderId} not found`,
   });
+} // doesOrderExist
 
-} // orderExists
-
-function idMatches(req, res, next) {
-  const { data: { id } = {} } = req.body;
-  const { orderId } = req.params;
-  if (id) {
-    if (id != orderId) {
-      return next({
-        status: 400,
-        message: `Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
-      });
-    }
-    return next();
+function isIdBodyHeaderMatch(req, res, next) {
+  const { id } = req.body.data;
+  const orderId = res.locals.orderId;
+  if (id && id != orderId) {
+    return next({
+      status: 400,
+      message: `Dish id does not match route id. Dish: ${id}, Route: ${orderId}`,
+    });
   }
+  return next();
 } // idMatches
 
 function isValidStatus(req, res, next) {
@@ -193,16 +194,16 @@ module.exports = {
     asyncErrorBoundary(isValidQuantity),
     asyncErrorBoundary(create),
   ],
-  read: [asyncErrorBoundary(orderExists), asyncErrorBoundary(read)],
+  read: [asyncErrorBoundary(doesOrderExist), asyncErrorBoundary(read)],
   update: [
     asyncErrorBoundary(hasRequiredProperties),
     asyncErrorBoundary(hasOnlyValidProperties),
-    asyncErrorBoundary(orderExists),
-    asyncErrorBoundary(idMatches),
+    asyncErrorBoundary(doesOrderExist),
+    asyncErrorBoundary(isIdBodyHeaderMatch),
     asyncErrorBoundary(isValidDishOrder),
     asyncErrorBoundary(isValidQuantity),
     asyncErrorBoundary(isValidStatus),
     asyncErrorBoundary(update),
   ],
-  delete: [asyncErrorBoundary(orderExists), asyncErrorBoundary(destroy)],
+  delete: [asyncErrorBoundary(doesOrderExist), asyncErrorBoundary(destroy)],
 };

@@ -11,16 +11,16 @@ function list() {
       "o.order_id as id",
       "o.deliverTo",
       "o.mobileNumber",
-      "o.status", 
+      "o.status",
       "d.dish_id",
       "d.name",
       "d.description",
       "d.price",
-      "d.image_url",   
-      "od.quantity"
+      "d.image_url",
+      "od.quantity",
     )
     .then((rows) => rows.map(addDishProperty))
-    .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS));
+    .then((cleanedRows) => nestOneToMany(cleanedRows, DISH_KEYS));
 } // list
 
 function read(orderId) {
@@ -31,50 +31,54 @@ function read(orderId) {
       "o.order_id as id",
       "o.deliverTo",
       "o.mobileNumber",
-      "o.status", 
+      "o.status",
       "d.dish_id",
       "d.name",
       "d.description",
       "d.price",
-      "d.image_url",   
-      "od.quantity"
+      "d.image_url",
+      "od.quantity",
     )
-    .where({"o.order_id": orderId})
+    .where({ "o.order_id": orderId })
     .then((rows) => rows.map(addDishProperty))
-    .then(cleanedRows => nestOneToMany(cleanedRows, DISH_KEYS))
+    .then((cleanedRows) => nestOneToMany(cleanedRows, DISH_KEYS))
     .then((createdRecords) => createdRecords[0]);
-}// read
+} // read
 
 async function create(order) {
   return await knex("orders as o")
     .insert(order)
-    .returning(
-      "o.order_id as id")
+    .returning("o.order_id as id")
     .then((createdRecords) => createdRecords[0]);
-}// create
+} // create
+
+function update(orderId, order) {
+  return knex("orders").where({ order_id: orderId }).update(order);
+} // update
 
 function destroy(orderId) {
   return knex("orders").where({ order_id: orderId }).del();
-}// destroy
+} // destroy
 
 //JOIN TABLE METHODS
-function createDishesOrdersTableEntry(entry) {
-  return knex("orders_dishes").insert(entry);
-} // createDishesOrdersTableEntry
+async function insert(id, dishes) {
+  for (const dish of dishes) {
+    await knex("orders_dishes").insert(dish);
+  }
+} // insert
 
-function removeDishesOrdersTableEntry(order_id, dish_id) {
-  return knex("orders_dishes").where({order_id, dish_id}).del();
-} // removeDishesOrdersTableEntry
+function remove(orderId) {
+  return knex("orders_dishes").where({order_id: orderId}).del();
+} // remove
 
-//Modify Table: Dishes
+//RESPONSE RECONSTRUCTOR
 const DISH_KEYS = [
-    "id",
-    "name",
-    "description",
-    "price",
-    "image_url",
-    "quantity",
-
+  "id",
+  "name",
+  "description",
+  "price",
+  "image_url",
+  "quantity",
 ]; // DISH_KEYS
 
 const addDishProperty = mapProperties({
@@ -83,17 +87,17 @@ const addDishProperty = mapProperties({
   price: "dish.price",
   description: "dish.description",
   image_url: "dish.image_url",
-  quantity: "dish.quantity"
+  quantity: "dish.quantity",
 }); // addDishProperty
 
 module.exports = {
   list,
-  create, 
+  create,
   read,
+  update,
   joinTable: {
-    create: createDishesOrdersTableEntry,
-    delete: removeDishesOrdersTableEntry,
+    insert,
+    remove,
   },
   delete: destroy,
 };
-
