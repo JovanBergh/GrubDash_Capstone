@@ -54,15 +54,19 @@ async function update(req, res) {
 } // update
 
 async function destroy(req, res, next) {
-  if (res.locals.order.status == "pending") {
-    const data = await ordersService.delete(res.locals.orderId); //Removing Order from DB
-    res.status(204);
+  const { status } = res.locals.order;
+  orderId = res.locals.orderId;
+
+  if (status != 'pending') {
+    return next({
+      status: 400,
+      message: "An order cannot be deleted unless it is pending.",
+    });
   } // if(order.status == pending)
 
-  return next({
-    status: 400,
-    message: "An order cannot be deleted unless it is pending.",
-  });
+  const data = await ordersService.delete(orderId); //Removing Order from DB
+  res.status(204).json({ data: data});
+
 } // destroy
 
 //VALIDATION METHODS
