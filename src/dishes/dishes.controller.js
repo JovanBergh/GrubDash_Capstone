@@ -1,6 +1,5 @@
 const path = require("path");
 const nextId = require("../utils/nextId");
-
 const dishesService = require("./dishes.service");
 
 //Error handling
@@ -8,7 +7,45 @@ const asyncErrorBoundary = require("../errors/asyncErrorBoundary");
 const hasProperties = require("../errors/hasProperties");
 
 
-const VALID_PROPERTIES = ["name", "description", "price", "image_url"];
+//MAIN METHODS
+
+function read(req, res) {
+  res.json({ data: res.locals.dish });
+}// read
+
+async function list(req, res) {
+  res.json({ data: await dishesService.list() });
+}// list
+
+async function update(req, res) {
+  const { name, description, price, image_url } = req.body.data;
+  dishId = req.params.dishId;
+  newDish = {
+    name: name,
+    description: description,
+    price: price,
+    image_url: image_url,
+
+  }
+  const data = await dishesService.update(dishId, newDish);
+  res.status(200).json({ data });
+}// update
+
+
+async function create(req, res) {
+  const data = await dishesService.create(req.body.data);
+  res.status(201).json({ data });
+}// create
+
+async function destroy(req, res) {
+  dishId = req.params.dishId;
+  await dishesService.destroy(dishId);
+  res.status(201);
+}// destroy 
+
+//VALIDATION METHODS
+
+const VALID_PROPERTIES = ["id", "name", "description", "price", "image_url"];
 
 const hasRequiredProperties = hasProperties("name", "price");
 
@@ -28,12 +65,6 @@ function hasOnlyValidProperties(req, res, next) {
   next();
 }
 
-//Method: List
-async function list(req, res) {
-  res.json({ data: await dishesService.list() });
-}
-
-//Validate: price
 function isValidPrice(req, res, next) {
   const { data: { price } = {} } = req.body;
   if (typeof price == "number" && price > 0) {
@@ -45,15 +76,8 @@ function isValidPrice(req, res, next) {
   });
 }
 
-//Methood: Create
-async function create(req, res) {
-  const data = await dishesService.create(req.body.data);
-  res.status(201).json({ data });
-}
-
-//Validate: id
-async function dishExists(req, res, next) {
-  const foundDish = await dishesService.checkDishId(req.params.dishId);
+async function doesDishExist(req, res, next) {
+  const foundDish = await dishesService.read(req.params.dishId);
   if (foundDish) {
     res.locals.dish = foundDish;
     return next();
@@ -62,15 +86,9 @@ async function dishExists(req, res, next) {
     status: 404,
     message: `${dishId} not found`,
   });
-}
+}// doesDishExist
 
-//Method: Read
-function read(req, res) {
-  res.json({ data: res.locals.dish });
-}
-
-//Validate: req.body.id
-function idMatches(req, res, next) {
+function idBodyAndHeaderMatch(req, res, next) {
   const { data: { id } = {} } = req.body;
   const { dishId } = req.params;
   if (id) {
@@ -84,17 +102,6 @@ function idMatches(req, res, next) {
   return next();
 }
 
-//Method: Update
-async function update(req, res) {
-  const updatedDish = {
-    ...req.body.data,
-    id: res.locals.dish.id,
-  };
-  const data = await dishesService.update(updatedDish);
-  res.status(200).json({ data });
-}
-
-//Export
 module.exports = {
   list: asyncErrorBoundary(list),
   create: [
@@ -103,13 +110,17 @@ module.exports = {
     asyncErrorBoundary(isValidPrice),
     asyncErrorBoundary(create),
   ],
-  read: [asyncErrorBoundary(dishExists), asyncErrorBoundary(read)],
+  read: [asyncErrorBoundary(doesDishExist), asyncErrorBoundary(read)],
   update: [
     asyncErrorBoundary(hasRequiredProperties),
     asyncErrorBoundary(hasOnlyValidProperties),
-    asyncErrorBoundary(dishExists),
-    asyncErrorBoundary(idMatches),
+    asyncErrorBoundary(doesDishExist),
+    asyncErrorBoundary(idBodyAndHeaderMatch),
     asyncErrorBoundary(isValidPrice),
     asyncErrorBoundary(update),
   ],
-};
+  delete: [
+    asyncErrorBoundary(doesDishExist),
+    asyncErrorBoundary(destroy),
+  ]
+};// module.exports

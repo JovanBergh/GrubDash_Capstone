@@ -56,7 +56,7 @@ async function update(req, res) {
 async function destroy(req, res, next) {
   if (res.locals.order.status == "pending") {
     const data = await ordersService.delete(res.locals.orderId); //Removing Order from DB
-    res.status(204).json({ data });
+    res.status(204);
   } // if(order.status == pending)
 
   return next({
@@ -153,7 +153,7 @@ async function doesOrderExist(req, res, next) {
   });
 } // doesOrderExist
 
-function isIdBodyHeaderMatch(req, res, next) {
+function idBodyAndHeaderMatch(req, res, next) {
   const { id } = req.body.data;
   const orderId = res.locals.orderId;
   if (id && id != orderId) {
@@ -199,7 +199,7 @@ module.exports = {
     asyncErrorBoundary(hasRequiredProperties),
     asyncErrorBoundary(hasOnlyValidProperties),
     asyncErrorBoundary(doesOrderExist),
-    asyncErrorBoundary(isIdBodyHeaderMatch),
+    asyncErrorBoundary(idBodyAndHeaderMatch),
     asyncErrorBoundary(isValidDishOrder),
     asyncErrorBoundary(isValidQuantity),
     asyncErrorBoundary(isValidStatus),
