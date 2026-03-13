@@ -23,10 +23,6 @@ function read(dishId) {
     .then((result) => result[0]);
 }// read
 
-function update(dishId, dish) {
-  return knex("dishes as d").where({ dish_id: dishId }).update(dish);
-}// update
-
 function create(dish) {
   return knex("dishes")
     .insert(dish)
@@ -34,9 +30,14 @@ function create(dish) {
     .then((createdRecords) => createdRecords[0]);
 }// create
 
+function update(dishId, dish) {
+  return knex("dishes as d").where({ dish_id: dishId }).update(dish);
+}// update
+
 function destroy (dishId) {
   return knex("dishes").where({ dish_id: dishId }).del();
 }// destroy
+
 module.exports = {
   list,
   create,

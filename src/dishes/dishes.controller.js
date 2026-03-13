@@ -17,6 +17,18 @@ async function list(req, res) {
   res.json({ data: await dishesService.list() });
 }// list
 
+async function create(req, res) {
+  const { name, description, price, image_url } = req.body.data;
+  const newDish = {
+    name: name,
+    description: description || "",
+    price: price,
+    image_url: image_url || "",
+  } 
+  const data = await dishesService.create(newDish);
+  res.status(201).json({ data });
+}// create
+
 async function update(req, res) {
   const { name, description, price, image_url } = req.body.data;
   dishId = req.params.dishId;
@@ -30,12 +42,6 @@ async function update(req, res) {
   const data = await dishesService.update(dishId, newDish);
   res.status(200).json({ data });
 }// update
-
-
-async function create(req, res) {
-  const data = await dishesService.create(req.body.data);
-  res.status(201).json({ data });
-}// create
 
 async function destroy(req, res) {
   dishId = req.params.dishId;
